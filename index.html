@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>LOVE SCAN · 감정 방사선 촬영실</title>
+  <meta name="description" content="NPC가 PC에게 품은 애정을 표층과 심층으로 나누어 촬영하는 OOC 결과 뷰어" />
+  <meta name="theme-color" content="#05080c" />
+  <meta name="color-scheme" content="dark" />
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Doto:wght@500..900&family=IBM+Plex+Sans+KR:wght@300;400;500;600&family=Martian+Mono:wght@300..600&display=swap" />
+  <link rel="stylesheet" href="styles.css?v=202611160030" />
+</head>
+<body>
+  <div class="app" id="app" data-view="home" data-mode="all">
+    <aside class="stage" id="stage" aria-label="감정 표본 촬영 화면">
+      <canvas id="gl"></canvas>
+      <svg class="leaders" id="leaders" aria-hidden="true"></svg>
+      <div class="marks" id="marks" aria-hidden="true"></div>
+
+      <p class="edge" aria-hidden="true">LOVE-SCAN / EMOTIONAL RADIOGRAPHY / FILM NO. 05</p>
+      <div class="hud tl">
+        <span>SPECIMEN</span>
+        <b id="hudId">표본 대기 중</b>
+      </div>
+      <div class="hud tr" aria-hidden="true">
+        <span>YAW <b id="hudYaw">000.0</b></span>
+        <span>PITCH <b id="hudPitch">+00.0</b></span>
+      </div>
+      <div class="hud bl" aria-hidden="true">
+        <span>SLICE <b id="hudSlice">01</b>/64</span>
+        <span>POINTS <b id="hudPoints">0</b></span>
+      </div>
+      <div class="hud br">
+        <i class="pulse" id="pulse" aria-hidden="true"></i>
+        <b class="bpm" id="hudBpm">--</b>
+        <span>BPM</span>
+      </div>
+
+      <div class="zoom" id="zoom" role="group" aria-label="확대와 축소">
+        <button type="button" data-z="in" aria-label="확대">+</button>
+        <button type="button" data-z="reset" id="zoomValue" aria-label="원래 크기로">65%</button>
+        <button type="button" data-z="out" aria-label="축소">−</button>
+      </div>
+      <div class="modes" id="modes" role="group" aria-label="촬영 층 선택" hidden>
+        <button type="button" data-mode="all" aria-pressed="true">전체</button>
+        <button type="button" data-mode="surface" aria-pressed="false">표층</button>
+        <button type="button" data-mode="deep" aria-pressed="false">심층</button>
+      </div>
+      <button class="shot" id="shot" type="button" hidden aria-label="회전 GIF 저장" aria-haspopup="true" aria-expanded="false" aria-controls="shotMenu"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h3l2-2.5h6L17 8h3v11H4z"/><circle cx="12" cy="13.2" r="3.6"/></svg><span>회전 GIF</span></button>
+      <div class="shot-menu" id="shotMenu" role="group" aria-label="GIF 저장 방식" hidden>
+        <button type="button" data-names="1">커플링명 넣기</button>
+        <button type="button" data-names="0">LOVE SCAN만</button>
+      </div>
+      <p class="hint" id="hint">끌어서 돌려 보세요</p>
+      <button class="gpu-chip" id="gpuChip" type="button" aria-expanded="false" aria-controls="gpuNote" hidden>간이 화면으로 보는 중 <span>자세히</span></button>
+      <div class="gpu-note" id="gpuNote" role="region" aria-label="간이 화면 안내" hidden>
+        <div data-why="off">
+          <b>하드웨어 가속을 켜면 원래 화질로 보여요</b>
+          <p>이 브라우저에서 그래픽 가속(WebGL)이 꺼져 있어<br />점 수를 줄인 간이 화면으로 보여 드리고 있어요.</p>
+          <ol>
+            <li>주소창에 아래 주소를 붙여 넣기<br /><small>크롬</small> <code>chrome://settings/system</code><br /><small>엣지</small> <code>edge://settings/system</code></li>
+            <li><span>가능한 경우 그래픽 가속 사용</span> 켜기</li>
+            <li><span>다시 시작</span> 누르기</li>
+          </ol>
+          <p class="gpu-sub">이미 켜져 있다면 주소창에 <code>chrome://gpu</code>를 넣고<br />WebGL 항목이 Hardware accelerated인지 확인해 주세요.</p>
+        </div>
+        <div data-why="shader" hidden>
+          <b>이 기기의 그래픽 드라이버와 맞지 않아요</b>
+          <p>그래픽 가속은 켜져 있지만 3D 화면을 만들지 못해<br />점 수를 줄인 간이 화면으로 보여 드리고 있어요.</p>
+          <p>내용과 동작은 같고, 화질만 조금 거칠어요.</p>
+        </div>
+        <button type="button" id="gpuClose" aria-label="안내 접기">✕</button>
+      </div>
+      <div class="nogl" id="nogl" role="status" hidden>
+        <div>
+          <b>하드웨어 가속을 켜 주세요</b>
+          <p>브라우저의 그래픽 가속이 꺼져 있어<br />촬영 화면을 그릴 수 없어요.</p>
+          <p>아래처럼 켜면 표본이 나타나요.<br />판독지는 지금도 볼 수 있어요.</p>
+          <ol>
+            <li>주소창에 아래 주소를 붙여 넣기<br /><small>크롬</small> <code>chrome://settings/system</code><br /><small>엣지</small> <code>edge://settings/system</code></li>
+            <li><span>가능한 경우 그래픽 가속 사용</span> 켜기</li>
+            <li><span>다시 시작</span> 누르기</li>
+          </ol>
+        </div>
+      </div>
+    </aside>
+
+    <main class="panel">
+      <section class="view home" id="home">
+        <header class="masthead">
+          <p class="kicker">EMOTIONAL RADIOGRAPHY</p>
+          <h1 class="logo"><span>LOVE</span><span>SCAN</span></h1>
+          <p class="lede">NPC가 PC에게 품은 애정을 <b>표층</b>과 <b>심층</b>으로 나누어 촬영합니다. 성분의 비율이 표본의 형태가 되고, 심박수가 표본의 맥박이 됩니다.</p>
+        </header>
+
+        <ol class="steps">
+          <li class="step" data-task="1" data-state="empty">
+            <span class="no">1</span>
+            <div class="step-body">
+              <div class="step-head"><h2>감정 스캔</h2><span class="status" aria-live="polite"></span></div>
+              <p>감정의 색, 표층과 심층 성분을 받습니다.</p>
+              <div class="row acts">
+                <button class="btn copy" type="button">OOC ① 복사</button>
+                <span class="arrow" aria-hidden="true">→</span>
+                <button class="btn paste" type="button">답 붙여넣기</button>
+              </div>
+              <textarea id="answer1" rows="5" spellcheck="false" aria-label="감정 스캔 답 직접 입력" placeholder="대상: … / …&#10;색상: #RRGGBB · …&#10;표층 1 [성분: …] [비율: 00.0%] (설명: …)" hidden></textarea>
+              <div class="got" hidden>
+                <span class="got-text"></span>
+                <button class="link" type="button" data-act="redo">다시 넣기</button>
+                <button class="link" type="button" data-act="clear">지우기</button>
+              </div>
+              <p class="error" role="alert" hidden></p>
+              <div class="row minor">
+                <button class="link manual" type="button">직접 붙여넣기</button>
+                <button class="link peek" type="button" aria-expanded="false">OOC 내용 보기</button>
+              </div>
+              <pre class="prompt" hidden></pre>
+            </div>
+          </li>
+          <li class="step" data-task="2" data-state="empty">
+            <span class="no">2</span>
+            <div class="step-body">
+              <div class="step-head"><h2>신체·물성 스캔</h2><span class="status" aria-live="polite"></span></div>
+              <p>같은 채팅에 이어서 보냅니다. 심박과 시선, 증상, 표본의 형태를 정하는 물성을 받습니다.</p>
+              <div class="row acts">
+                <button class="btn copy" type="button">OOC ② 복사</button>
+                <span class="arrow" aria-hidden="true">→</span>
+                <button class="btn paste" type="button">답 붙여넣기</button>
+              </div>
+              <textarea id="answer2" rows="5" spellcheck="false" aria-label="신체·물성 스캔 답 직접 입력" placeholder="심박: 평상시 00 / 접촉 시 00 / 최고 000&#10;결정화율: 00% · …" hidden></textarea>
+              <div class="got" hidden>
+                <span class="got-text"></span>
+                <button class="link" type="button" data-act="redo">다시 넣기</button>
+                <button class="link" type="button" data-act="clear">지우기</button>
+              </div>
+              <p class="error" role="alert" hidden></p>
+              <div class="row minor">
+                <button class="link manual" type="button">직접 붙여넣기</button>
+                <button class="link peek" type="button" aria-expanded="false">OOC 내용 보기</button>
+              </div>
+              <pre class="prompt" hidden></pre>
+            </div>
+          </li>
+          <li class="step" data-task="3" data-state="empty">
+            <span class="no">3</span>
+            <div class="step-body">
+              <div class="step-head"><h2>조성·최종 판독</h2><span class="status" aria-live="polite"></span></div>
+              <p>이어서 보냅니다. 원소 조성, 균열, 삼킨 것, 최종 소견을 받습니다.</p>
+              <div class="row acts">
+                <button class="btn copy" type="button">OOC ③ 복사</button>
+                <span class="arrow" aria-hidden="true">→</span>
+                <button class="btn paste" type="button">답 붙여넣기</button>
+              </div>
+              <textarea id="answer3" rows="5" spellcheck="false" aria-label="조성·최종 판독 답 직접 입력" placeholder="원소 1 [원소: … (…)] [비율: 00%] (설명: …)&#10;소견: …" hidden></textarea>
+              <div class="got" hidden>
+                <span class="got-text"></span>
+                <button class="link" type="button" data-act="redo">다시 넣기</button>
+                <button class="link" type="button" data-act="clear">지우기</button>
+              </div>
+              <p class="error" role="alert" hidden></p>
+              <div class="row minor">
+                <button class="link manual" type="button">직접 붙여넣기</button>
+                <button class="link peek" type="button" aria-expanded="false">OOC 내용 보기</button>
+              </div>
+              <pre class="prompt" hidden></pre>
+            </div>
+          </li>
+        </ol>
+
+        <button class="btn primary" id="scan" type="button" disabled>스캔 시작</button>
+        <p class="scan-note" id="scanNote" hidden></p>
+        <div class="row extras">
+          <button class="link" id="sample" type="button">예시로 보기</button>
+          <button class="link" id="resume" type="button" hidden>지난 스캔 다시 보기</button>
+        </div>
+        <footer class="foot">@gimyunseul92364</footer>
+      </section>
+
+      <section class="view result" id="result" hidden>
+        <nav class="bar">
+          <button class="link" id="back" type="button">← 처음으로</button>
+          <span class="bar-id" id="barId"></span>
+        </nav>
+        <div class="tabs" id="tabs" role="tablist" aria-label="판독지 항목"></div>
+        <article class="report" id="report"></article>
+        <footer class="foot">@gimyunseul92364</footer>
+      </section>
+    </main>
+  </div>
+
+  <div class="gif-loading" id="gifLoading" role="status" aria-live="polite" hidden>
+    <div class="gl-box">
+      <svg class="gl-ring" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="20"/><circle class="gl-arc" cx="24" cy="24" r="20"/></svg>
+      <p class="gl-msg" id="gifMsg">회전 GIF를 만드는 중</p>
+      <div class="gl-track"><i id="gifBar"></i></div>
+      <p class="gl-pct" id="gifPct">0%</p>
+    </div>
+  </div>
+  <div class="toast" id="toast" role="status" hidden></div>
+  <script type="module" src="js/app.js?v=202611160030"></script>
+</body>
+</html>
